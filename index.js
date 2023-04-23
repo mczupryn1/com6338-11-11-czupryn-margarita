@@ -8,39 +8,34 @@ const pipe = (...fns) => firstArg => fns.reduce((returnValue, fn) => fn(returnVa
 
 const makeTag = tag => str => `<${tag}>${str}</${tag}>`;
 
-const makePoemHTML = pipe(
-  poem => {
-    // Convert author name "Rumi" into "<h3><em>by Rumi</em></h3>"
-    poem.author = makeTag('em')(poem.author);
-    poem.author = makeTag('h3')(poem.author);
-    poem.author = poem.author.replace(/^<h3>(.*?)<\/h3>$/, '<h3><em>by $1</em></h3>');
-    return poem;
-  },
-  poem => {
-    // Place each stanza (group of lines separated by a blank line) in a single paragraph tag
-    poem.lines = poem.lines.join('\n').split(/\n\s*\n/);
-    return poem;
-  },
-  poem => {
-    // Place <br> between each line of text inside the paragraph tag
-    poem.lines = poem.lines.map(lines => lines.replace(/\n/g, '<br>'));
-    return poem;
-  },
-  poem => {
-    // Return HTML string that contains title in h2, then author in em in h3, and then paragraph tags
-    const titleHTML = makeTag('h2')(poem.title);
-    const authorHTML = poem.author;
-    const linesHTML = poem.lines.map(lines => makeTag('p')(lines)).join('');
-    return `${titleHTML}\n${authorHTML}\n${linesHTML}`;
-  }
-);
+const makePoemHTML = (data) => {
+  let output = '';
+  const [{ author, lines, title }] = data;
 
-getPoemBtn.onclick = async function() {
-  // Clicking "Get Poem" should render poem HTML to #poem
-  poemEl.innerHTML = makePoemHTML(await getJSON(poemURL));
+  // create the title and author sections
+  output +=
+    makeTag('h2')(title) +
+    pipe(makeTag(`em`), makeTag(`h3`))(`by ` + author);
+
+  // create line breaks for each line
+  const joinLines = arr => arr.join('<br/>');
+  const splitLines = str => str.split('<br/><br/>');
+
+  // split stanzas into paragraphs
+  const makeParagraphText = pipe(joinLines, splitLines);
+  const makeParagraph = makeTag(`p`);
+
+  // turn poem into a string of HTML
+  const paraArray = makeParagraphText(lines).map(str => makeParagraph(str));
+  const poemString = paraArray.join('');
+
+  output += poemString;
+
+  return output;
 }
 
-// Clicking "Get Poem" again should render new poem HTML to #poem
-getPoemBtn.addEventListener('click', () => {
-  poemEl.innerHTML = '';
-});
+// attach a click event to #get-poem
+getPoemBtn.onclick = async function() {
+  // Render the HTML string returned by makePoemHTML to #poem
+  poemEl.innerHTML = makePoemHTML(await getJSON(poemURL));
+}
